@@ -1,0 +1,188 @@
+// #include "address_map_arm.h"
+#include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#define KEY_BASE              0xFF200050
+#define VIDEO_IN_BASE         0xFF203060
+#define FPGA_ONCHIP_BASE      0xC8000000
+
+/* This program demonstrates the use of the D5M camera with the DE1-SoC Board
+ * It performs the following: 
+ * 	1. Capture one frame of video when any key is pressed.
+ * 	2. Display the captured frame when any key is pressed.		  
+ */
+/* Note: Set the switches SW3 and SW4 to high and rest of the switches to low for correct exposure timing while compiling and the loading the program in the Altera Monitor program.
+ */
+
+void write_char(int x, int y, char c) {
+	volatile char * character_buffer = (char *) (0xc9000000 + (y << 7) + x);
+	*character_buffer = c;
+}
+
+void write_pixel(int x, int y, short colour) {
+	volatile short *vga_addr = (volatile short*) (0xc8000000 + (y << 10)
+			+ (x << 1));
+	*vga_addr = colour;
+}
+
+void clear_chars() {
+	int x, y;
+	for (x = 0; x < 320; x++) {
+		for (y = 0; y < 240; y++) {
+			write_char(x,y,0);
+		}
+	}
+}
+
+int main(void) {
+	volatile int counter = 0;
+	volatile int state=0;
+
+	while (1) {
+		volatile int * KEY_ptr = (int *) KEY_BASE;
+		volatile int * Video_In_DMA_ptr = (int *) VIDEO_IN_BASE;
+		volatile short * Video_Mem_ptr = (short *) FPGA_ONCHIP_BASE;
+
+		int x, y;
+		*(Video_In_DMA_ptr + 3) = 0x4;					// Enable the video
+
+		if (*KEY_ptr == 0x01)					// check if any KEY was pressed
+		{
+			counter++;
+			*(Video_In_DMA_ptr + 3) = 0x0;// Disable the video to capture one frame
+
+			time_t t = time(NULL);
+			struct tm tm = *localtime(&t);
+			char timeAndDate[45];
+			sprintf(timeAndDate, "Picture Count: %02d     %04d-%02d-%02d %02d:%02d:%02d GMT", counter, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+			x = 2;
+			for (y = 0; y < 45; y++) {
+				write_char(x, 58, timeAndDate[y]);
+				x++;
+			}
+
+			while (*KEY_ptr != 0);					// wait for pushbutton KEY release
+
+			while (1) {
+
+				if (*KEY_ptr == 0x01)			// check if any KEY was pressed
+				{
+					*(Video_In_DMA_ptr + 3) = 0x4;// Disable the video to capture one frame
+					clear_chars();
+					while (*KEY_ptr != 0);			// wait for pushbutton KEY release
+					break;
+				}
+
+				if (*KEY_ptr == 0x02)			// check if any KEY was pressed
+				{
+
+					short horizPixels[320];
+					short count;
+					int y1, x1, x2;
+
+					for (y1 = 0; y1 < 240; y1++) {
+						for (x1 = 0; x1 < 320; x1++) {
+							horizPixels[x1] = *(Video_Mem_ptr + (y1 << 9) + x1);
+						}
+
+						count = 0;
+						for (x2 = 319; x2 > 0; x2 = x2 - 1) {
+							write_pixel(x2, y1, horizPixels[count]);
+							count++;
+						}
+					}
+					while (*KEY_ptr != 0);				// wait for pushbutton KEY release
+				}
+
+				if (*KEY_ptr == 0x04)		// check if any KEY was pressed
+				{
+					short horizPixels[320];
+					short vertPixels[240];
+					short count;
+					int y1, y2, x1, x2;
+
+					for (y1 = 0; y1 < 240; y1++) {
+						for (x1 = 0; x1 < 320; x1++) {
+							horizPixels[x1] = *(Video_Mem_ptr + (y1 << 9) + x1);
+						}
+
+						count = 0;
+						for (x2 = 319; x2 > 0; x2 = x2 - 1) {
+							write_pixel(x2, y1, horizPixels[count]);
+							count++;
+						}
+					}
+
+					for (x1 = 0; x1 < 320; x1++) {
+						for (y1 = 0; y1 < 240; y1++) {
+							vertPixels[y1] = *(Video_Mem_ptr + (y1 << 9) + x1);
+						}
+
+						count = 0;
+						for (y2 = 239; y2 > 0; y2 = y2 - 1) {
+							write_pixel(x1, y2, vertPixels[count]);
+							count++;
+						}
+					}
+
+					while (*KEY_ptr != 0);				// wait for pushbutton KEY release
+				}
+
+				if (*KEY_ptr == 0x08)		// check if any KEY was pressed
+				{
+					int pic[320][240];
+					state++;
+					if (state==1)
+					{
+						for (y = 0; y < 240; y++) {
+							for (x = 0; x < 320; x++) {
+								pic[x][y] =  *(Video_Mem_ptr + (y << 9) + x);
+							}
+						}
+
+						for (y = 0; y < 240; y++) {
+							for (x = 0; x < 320; x++) {
+								*(Video_Mem_ptr + (y << 9) + x) =0xFFFF - pic[x][y];
+							}
+						}
+
+						while (*KEY_ptr != 0);
+					}
+
+					if (state==2)		// check if any KEY was pressed
+					{
+						for (y = 0; y < 240; y++) {
+							for (x = 0; x < 320; x++) {
+								int r = (pic[x][y] & 0xF800) >> 11;
+								int g = (pic[x][y] & 0x07E0) >> 5;
+								int b = (pic[x][y] & 0x001F);
+								int sum = (r + g + b) / 3;
+								int newPix = 0x0000 | sum | (sum << 6) | (sum << 11); 
+								*(Video_Mem_ptr + (y << 9) + x) = newPix;
+							}
+						}
+						while (*KEY_ptr != 0);
+
+					}
+					if (state==3)		// check if any KEY was pressed
+					{
+						for (y = 0; y < 240; y++) {
+							for (x = 0; x < 320; x++) {
+								*(Video_Mem_ptr + (y << 9) + x) =pic[x][y];
+							}
+						}
+						while (*KEY_ptr != 0);
+						state=0;
+					}
+				}
+				for (y = 0; y < 240; y++) {
+					for (x = 0; x < 320; x++) {
+						short temp2 = *(Video_Mem_ptr + (y << 9) + x);
+						*(Video_Mem_ptr + (y << 9) + x) = temp2;
+					}
+				}
+			}
+		}
+	}
+}
