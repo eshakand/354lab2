@@ -1,3 +1,9 @@
+/*Andrew Eshak, Valentin Degtyarev
+ * program that uses camera to perform many functions 
+ * including negation, grayscale and rotation 
+ * as well as edge detection and spot the difference 
+ */
+
 // #include "address_map_arm.h"
 #include <time.h>
 #include <stdio.h>
@@ -15,118 +21,143 @@
 /* Note: Set the switches SW3 and SW4 to high and rest of the switches to low for correct exposure timing while compiling and the loading the program in the Altera Monitor program.
  */
 
+//writes a character to the screen
 void write_char(int x, int y, char c) {
 	volatile char * character_buffer = (char *) (0xc9000000 + (y << 7) + x);
 	*character_buffer = c;
 }
 
+//changes individual pixel value, used for debugging 
 void write_pixel(int x, int y, short colour) {
+
+//x and y are coordinates of pixel to be changed, colour is the value that the pixel should be changed to.  
 	volatile short *vga_addr = (volatile short*) (0xc8000000 + (y << 10)
 			+ (x << 1));
 	*vga_addr = colour;
 }
 
+//clears all written character on the screen 
 void clear_chars() {
 	int x, y;
+	//loops through all pixels of the screen and clears all characters. 
 	for (x = 0; x < 320; x++) {
 		for (y = 0; y < 240; y++) {
 			write_char(x,y,0);
 		}
 	}
 }
-
+/* program takes picture on press of button 1, 
+ * then mirrors on press of button 2 
+ * or rotates on press of button 3. 
+ * on first press of button 4, the taken picture is negated
+ * on second press of button 4, the grayscale of the taken picture is displayed
+ * on third press, the original picture is displayed 
+ * if button 2 is held while in live mode, a picture is taken then 
+ * the program performs "spot the difference" between taken picture and live feed
+ * if button 3 is pressed while in live mode, a picture is taken then 
+ * the program performs edge detection on the still picture
+ * if button 4 is held while in live mode, the program performs edge detection on the live feed.  
+ */
 int main(void) {
-	volatile int counter = 0;
+
+	//a counter for the number of pictures taken
+	volatile int pictureCounter = 0;
+	//to determine grayscale, negate or regular picture based on click 
 	volatile int state=0;
+	//temporary array to mirror picture 
 	int  pixels [320][240];
 
 	while (1) {
+	//key and video memory variables 
 		volatile int * KEY_ptr = (int *) KEY_BASE;
 		volatile int * Video_In_DMA_ptr = (int *) VIDEO_IN_BASE;
 		volatile short * Video_Mem_ptr = (short *) FPGA_ONCHIP_BASE;
-
+		
+		//variables used to loop through array of pixels 
 		int x, y;
+		
 		*(Video_In_DMA_ptr + 3) = 0x4;					// Enable the video
 
 		if (*KEY_ptr == 0x01)					// check if any KEY was pressed
 		{
-			counter++;
+			pictureCounter++;  //add 1 to picture counter
 			*(Video_In_DMA_ptr + 3) = 0x0;// Disable the video to capture one frame
 
 
 			time_t t = time(NULL);
-			struct tm tm = *localtime(&t);
+			struct tm tm = *localtime(&t); //take time of picture taken 
 			char timeAndDate[45];
-			sprintf(timeAndDate, "Picture Count: %02d     %04d-%02d-%02d %02d:%02d:%02d GMT", counter, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+			sprintf(timeAndDate, "Picture Count: %02d     %04d-%02d-%02d %02d:%02d:%02d GMT", pictureCounter, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec); //store picture Count and timestamp in array 
 			x = 2;
+			//display characters in array on screen to display timestamp and picture counter 
 			for (y = 0; y < 45; y++) {
 				write_char(x, 58, timeAndDate[y]);
 				x++;
 
 			}
 
-			while (*KEY_ptr != 0);					// wait for pushbutton KEY release
-
+			while (*KEY_ptr != 0);					//wait for pushbutton KEY release
+			//while not in live mode 
 			while (1) {
 
-				if (*KEY_ptr == 0x01)			// check if any KEY was pressed
+				if (*KEY_ptr == 0x01)			//check key 1 is pressed while not in live mode
 				{
-					*(Video_In_DMA_ptr + 3) = 0x4;// Disable the video to capture one frame
-					clear_chars();
-					while (*KEY_ptr != 0);
+					*(Video_In_DMA_ptr + 3) = 0x4;  //enable the video to return to live mode 
+					clear_chars(); 			//clear counter and timestamp from screen 
+					while (*KEY_ptr != 0);		//wait until key is released and return to live mode 
 					break;
 				}
 
-				if (*KEY_ptr == 0x02)			// check if any KEY was pressed
+				if (*KEY_ptr == 0x02)			// check key 2 is pressed while not in live mode 
 				{
 
-					short horizPixels[320];
+					short horizPixels[320];		//create an array to store inverted x coordinates
 					short count;
-					int y1, x1, x2;
-
-					for (y1 = 0; y1 < 240; y1++) {
+					int y1, x1, x2;			//variables used to loop through pixels 
+						
+					for (y1 = 0; y1 < 240; y1++) {		//flip x cordinates of pixels in array to mirror image 
 						for (x1 = 0; x1 < 320; x1++) {
 							horizPixels[x1] = *(Video_Mem_ptr + (y1 << 9) + x1);
 						}
 
 						count = 0;
-						for (x2 = 319; x2 > 0; x2 = x2 - 1) {
+						for (x2 = 319; x2 > 0; x2 = x2 - 1) {           //dispaly flipped coordinates on the screen 
 							write_pixel(x2, y1, horizPixels[count]);
 							count++;
 						}
 					}
 
 
-					while (*KEY_ptr != 0);
+					while (*KEY_ptr != 0);			//wait until key is released 
 				}
 
-				if (*KEY_ptr == 0x04)		// check if any KEY was pressed
+				if (*KEY_ptr == 0x04)		//check if button 3 was pressed while not in live mode 
 				{
-					short horizPixels[320];
-					short vertPixels[240];
-					short count;
-					int y1, y2, x1, x2;
+					short horizPixels[320];     //array of horizontal pixels to be flipped
+					short vertPixels[240];      //array of vertical pixels to be flipped 
+					short count;                 
+					int y1, y2, x1, x2;	    //variables used to loop through pixels 
 
 					for (y1 = 0; y1 < 240; y1++) {
 						for (x1 = 0; x1 < 320; x1++) {
-							horizPixels[x1] = *(Video_Mem_ptr + (y1 << 9) + x1);
+							horizPixels[x1] = *(Video_Mem_ptr + (y1 << 9) + x1); //flip horizontal pixels in array 
 						}
 
 						count = 0;
 						for (x2 = 319; x2 > 0; x2 = x2 - 1) {
-							write_pixel(x2, y1, horizPixels[count]);
+							write_pixel(x2, y1, horizPixels[count]);     //display flipped horizontal pixels on screen
 							count++;
 						}
 					}
 
 					for (x1 = 0; x1 < 320; x1++) {
 						for (y1 = 0; y1 < 240; y1++) {
-							vertPixels[y1] = *(Video_Mem_ptr + (y1 << 9) + x1);
+							vertPixels[y1] = *(Video_Mem_ptr + (y1 << 9) + x1);	//flip vertical pixels in array 
 						}
 
 						count = 0;
 						for (y2 = 239; y2 > 0; y2 = y2 - 1) {
-							write_pixel(x1, y2, vertPixels[count]);
+							write_pixel(x1, y2, vertPixels[count]);			//display flipped vertical pixes on screen 
 							count++;
 						}
 					}
@@ -134,25 +165,25 @@ int main(void) {
 					while (*KEY_ptr != 0);				// wait for pushbutton KEY release
 				}
 
-				if (*KEY_ptr == 0x08)		// check if any KEY was pressed
+				if (*KEY_ptr == 0x08)		//check if button 4 is pressed while not in live mode  
 				{
-					int pic[320][240];
-					state++;
-					if (state==1)
+					int pic[320][240];	 //array to go through all pixels of array 
+					state++;		 //add 1 to state each time button is pressed to change between picture, negation, and grayscale 
+					if (state==1)		//if button is pressed once, negate 
 					{
-						for (y = 0; y < 240; y++) {
+						for (y = 0; y < 240; y++) {		//go through all pixels of picture to store in array 
 							for (x = 0; x < 320; x++) {
 								pic[x][y] =  *(Video_Mem_ptr + (y << 9) + x);
 							}
 						}
 
 						for (y = 0; y < 240; y++) {
-							for (x = 0; x < 320; x++) {
+							for (x = 0; x < 320; x++) {	//negate values store in array and display on screen 
 								*(Video_Mem_ptr + (y << 9) + x) =0xFFFF - pic[x][y];
 							}
 						}
 
-						while (*KEY_ptr != 0);
+						while (*KEY_ptr != 0);		//wait until button is released 
 					}
 
 					if (state==2)		// check if any KEY was pressed
