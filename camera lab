@@ -38,6 +38,7 @@ void clear_chars() {
 int main(void) {
 	volatile int counter = 0;
 	volatile int state=0;
+	volatile int  pixels [320][240];
 
 	while (1) {
 		volatile int * KEY_ptr = (int *) KEY_BASE;
@@ -52,6 +53,7 @@ int main(void) {
 			counter++;
 			*(Video_In_DMA_ptr + 3) = 0x0;// Disable the video to capture one frame
 
+
 			time_t t = time(NULL);
 			struct tm tm = *localtime(&t);
 			char timeAndDate[45];
@@ -60,6 +62,7 @@ int main(void) {
 			for (y = 0; y < 45; y++) {
 				write_char(x, 58, timeAndDate[y]);
 				x++;
+
 			}
 
 			while (*KEY_ptr != 0);					// wait for pushbutton KEY release
@@ -70,7 +73,7 @@ int main(void) {
 				{
 					*(Video_In_DMA_ptr + 3) = 0x4;// Disable the video to capture one frame
 					clear_chars();
-					while (*KEY_ptr != 0);			// wait for pushbutton KEY release
+					while (*KEY_ptr != 0);
 					break;
 				}
 
@@ -92,7 +95,9 @@ int main(void) {
 							count++;
 						}
 					}
-					while (*KEY_ptr != 0);				// wait for pushbutton KEY release
+
+
+					while (*KEY_ptr != 0);
 				}
 
 				if (*KEY_ptr == 0x04)		// check if any KEY was pressed
@@ -182,6 +187,28 @@ int main(void) {
 						*(Video_Mem_ptr + (y << 9) + x) = temp2;
 					}
 				}
+			}
+		}
+		if (*KEY_ptr == 0x02)
+		{
+			*(Video_In_DMA_ptr + 3) = 0x0;// Disable the video to capture one frame
+			for (y = 0; y < 240; y++) {
+				for (x = 0; x < 320; x++) {
+					short temp2 = *(Video_Mem_ptr + (y << 9) + x);
+					pixels[x][y]=temp2;
+				}
+			}
+			*(Video_In_DMA_ptr + 3) = 0x4;// ENABLE the video to capture one frame
+			while (*KEY_ptr != 0){
+				for (y = 0; y < 240; y++) {
+					for (x = 0; x < 320; x++) {
+						short temp2 = *(Video_Mem_ptr + (y << 9) + x);
+						if ((abs(((pixels[x][y] & 0xF800) >> 11)-((temp2 & 0xF800) >> 11))>0x6)||(abs(((pixels[x][y] & 0x07E0) >> 5)-((temp2 & 0x07E0) >> 5))>0x6)||(abs(((pixels[x][y] & 0x001F))-((temp2 & 0x001F)))>0x6))
+						{
+							*(Video_Mem_ptr + (y << 9) + x) = 0xFF00FF;
+						}
+					}
+				}// wait for pushbutton KEY release*/
 			}
 		}
 	}
