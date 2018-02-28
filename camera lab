@@ -12,6 +12,7 @@
 #define KEY_BASE              0xFF200050
 #define VIDEO_IN_BASE         0xFF203060
 #define FPGA_ONCHIP_BASE      0xC8000000
+	int  pixels [320][240];
 
 /* This program demonstrates the use of the D5M camera with the DE1-SoC Board
  * It performs the following: 
@@ -26,7 +27,10 @@ void write_char(int x, int y, char c) {
 	volatile char * character_buffer = (char *) (0xc9000000 + (y << 7) + x);
 	*character_buffer = c;
 }
-
+void spotDifference()
+{
+	
+}
 //changes individual pixel value, used for debugging 
 void write_pixel(int x, int y, short colour) {
 
@@ -65,7 +69,7 @@ int main(void) {
 	//to determine grayscale, negate or regular picture based on click 
 	volatile int state=0;
 	//temporary array to mirror picture 
-	int  pixels [320][240];
+
 
 	while (1) {
 	//key and video memory variables 
@@ -186,45 +190,47 @@ int main(void) {
 						while (*KEY_ptr != 0);		//wait until button is released 
 					}
 
-					if (state==2)		// check if any KEY was pressed
+					if (state==2)		// if button 4 was pressed twice, do grayscale 
 					{
 						for (y = 0; y < 240; y++) {
-							for (x = 0; x < 320; x++) {
+							for (x = 0; x < 320; x++) {		//for each pixel, filter out the red, green, and blue components of each pixel  
 								int r = (pic[x][y] & 0xF800) >> 11;
 								int g = (pic[x][y] & 0x07E0) >> 5;
 								int b = (pic[x][y] & 0x001F);
-								int sum = (r + g + b) / 3;
-								int newPix = 0x0000 | sum | (sum << 6) | (sum << 11); 
-								*(Video_Mem_ptr + (y << 9) + x) = newPix;
+								int sum = (r + g + b) / 3;	//take the average value of all three components to do grayscale
+								int newPix = 0x0000 | sum | (sum << 6) | (sum << 11); 	//fill in the red, green and blue of new pixel with average value
+								*(Video_Mem_ptr + (y << 9) + x) = newPix;    //display grayscale picture on screen
 							}
 						}
-						while (*KEY_ptr != 0);
+						while (*KEY_ptr != 0);    //wait until key was released
 
 					}
-					if (state==3)		// check if any KEY was pressed
+					if (state==3)		// if button 4 was pressed three times, return to original picture
 					{
 						for (y = 0; y < 240; y++) {
 							for (x = 0; x < 320; x++) {
-								*(Video_Mem_ptr + (y << 9) + x) =pic[x][y];
+								*(Video_Mem_ptr + (y << 9) + x) =pic[x][y];		//display original pixels on screen 
 							}
 						}
-						while (*KEY_ptr != 0);
-						state=0;
+						while (*KEY_ptr != 0);		//wait until key is released
+						state=0;		//return to original state where button three was not pressed
 					}
 				}
-				for (y = 0; y < 240; y++) {
+				/*for (y = 0; y < 240; y++) {
 					for (x = 0; x < 320; x++) {
 						short temp2 = *(Video_Mem_ptr + (y << 9) + x);
 						*(Video_Mem_ptr + (y << 9) + x) = temp2;
 					}
-				}
+				}*/
+				
 			}
 		}
-
-		if (*KEY_ptr == 0x02)
+		
+		
+		if (*KEY_ptr == 0x02)		//if second button was pressed while in live feed, do spot the difference
 		{
-			*(Video_In_DMA_ptr + 3) = 0x0;// Disable the video to capture one frame
-			for (y = 0; y < 240; y++) {
+			*(Video_In_DMA_ptr + 3) = 0x0;	//Disable the video to capture one frame
+			for (y = 0; y < 240; y++) {			//capture the value pof the pixels in the array 
 				for (x = 0; x < 320; x++) {
 					short temp2 = *(Video_Mem_ptr + (y << 9) + x);
 					pixels[x][y]=temp2;
