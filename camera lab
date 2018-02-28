@@ -189,7 +189,7 @@ int main(void) {
 				}
 			}
 		}
-		
+
 		if (*KEY_ptr == 0x02)
 		{
 			*(Video_In_DMA_ptr + 3) = 0x0;// Disable the video to capture one frame
@@ -217,8 +217,37 @@ int main(void) {
 		{
 			short pix1, pix2, pix3;
 
+			*(Video_In_DMA_ptr + 3) = 0x00;
+
+			for (y = 0; y < 240; y++) {
+				for (x = 0; x < 320; x++) {
+					pixels[x][y] =  *(Video_Mem_ptr + (y << 9) + x);
+				}
+			}
+
+			for (y = 0; y < 239; y++) {
+				for (x = 0; x < 319; x++) {
+					pix1 = (pixels[x][y] - pixels[x - 1][y]);
+					pix2 = (pixels[x][y] - pixels[x][y + 1]);
+					pix3 = (pixels[x][y] - pixels[x + 1][y + 1]);
+
+					if ( pix1 > 0x2240 || pix2 > 0x2240 || pix3 > 0x2240)
+					{
+						*(Video_Mem_ptr + (y << 9) + x) = 0xFF00FF;
+					}
+				}
+			}
+
+			while(*KEY_ptr != 0x00);
+			*(Video_In_DMA_ptr + 3) = 0x04;
+		}
+
+		if (*KEY_ptr == 0x08)
+		{
+			short pix1, pix2, pix3;
+
 			while( *KEY_ptr != 0x00 ) {
-				
+
 				for (y = 0; y < 240; y++) {
 					for (x = 0; x < 320; x++) {
 						pixels[x][y] =  *(Video_Mem_ptr + (y << 9) + x);
@@ -229,11 +258,11 @@ int main(void) {
 					for (x = 0; x < 319; x++) {
 						pix1 = (pixels[x][y] - pixels[x - 1][y]);
 						pix2 = (pixels[x][y] - pixels[x][y + 1]);
-						//pix3 = (pixels[x][y] - pixels[x + 1][y + 1]);
-						
-						if ( pix1 > 0x2400 || pix2 > 0x2400)
+						pix3 = (pixels[x][y] - pixels[x + 1][y + 1]);
+
+						if ( pix1 > 0x2240 || pix2 > 0x2240 || pix3 > 0x2240)
 						{
-							write_pixel(x,y,0xFF00FF);
+							*(Video_Mem_ptr + (y << 9) + x) = 0xFF00FF;
 						}
 					}
 				}
