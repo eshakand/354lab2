@@ -239,38 +239,39 @@ int main(void) {
 					pixels[x][y]=temp2;
 				}
 			}
-			*(Video_In_DMA_ptr + 3) = 0x4;// ENABLE the video to capture one frame
+			*(Video_In_DMA_ptr + 3) = 0x4;  // ENABLE the video 
 			while (*KEY_ptr != 0){
-				for (y = 0; y < 240; y++) {
+				for (y = 0; y < 240; y++) {  //compare RGB values of each pixel in live video to RGB value of pixels in stored array 
 					for (x = 0; x < 320; x++) {
 						short temp2 = *(Video_Mem_ptr + (y << 9) + x);
+						//if RGB values are vastly different, then highlight in blue 
 						if ((abs(((pixels[x][y] & 0xF800) >> 11)-((temp2 & 0xF800) >> 11))>0x6)||(abs(((pixels[x][y] & 0x07E0) >> 5)-((temp2 & 0x07E0) >> 5))>0x6)||(abs(((pixels[x][y] & 0x001F))-((temp2 & 0x001F)))>0x6))
 						{
 							*(Video_Mem_ptr + (y << 9) + x) = 0xFF00FF;
 						}
 					}
-				}// wait for pushbutton KEY release*/
+				}// wait for pushbutton KEY release then return to live mode */
 			}
 		}
-
+		//if button 4 is pressed in live mode, do edge detection on still picture 
 		if (*KEY_ptr == 0x04)
 		{
 			short pix1, pix2, pix3;
-
+			//stop feed to capture picture 
 			*(Video_In_DMA_ptr + 3) = 0x00;
-
+			//store pixels in pixels array 
 			for (y = 0; y < 240; y++) {
 				for (x = 0; x < 320; x++) {
 					pixels[x][y] =  *(Video_Mem_ptr + (y << 9) + x);
 				}
 			}
-
+			//compare each pixel to its horizontal, vertical and diagonal neighbors 
 			for (y = 0; y < 239; y++) {
 				for (x = 0; x < 319; x++) {
 					pix1 = (pixels[x][y] - pixels[x - 1][y]);
 					pix2 = (pixels[x][y] - pixels[x][y + 1]);
 					pix3 = (pixels[x][y] - pixels[x + 1][y + 1]);
-
+					//if pixels are vastly different, highlight in blue 
 					if ( pix1 > 0x2240 || pix2 > 0x2240 || pix3 > 0x2240)
 					{
 						*(Video_Mem_ptr + (y << 9) + x) = 0xFF00FF;
@@ -278,28 +279,29 @@ int main(void) {
 				}
 			}
 
-			while(*KEY_ptr != 0x00);
+			while(*KEY_ptr != 0x00); //when button is released return to live mode 
 			*(Video_In_DMA_ptr + 3) = 0x04;
 		}
-
+		//if button 8 is pressed, do edge detection on live video feed
 		if (*KEY_ptr == 0x08)
 		{
 			short pix1, pix2, pix3;
-
+			//while key is held do edge detection
 			while( *KEY_ptr != 0x00 ) {
-
+			
+				//store pixels in pixels array 
 				for (y = 0; y < 240; y++) {
 					for (x = 0; x < 320; x++) {
 						pixels[x][y] =  *(Video_Mem_ptr + (y << 9) + x);
 					}
 				}
-
+				//compare each pixel to its horizontal, vertical and diagonal neighbors 
 				for (y = 0; y < 239; y++) {
 					for (x = 0; x < 319; x++) {
 						pix1 = (pixels[x][y] - pixels[x - 1][y]);
 						pix2 = (pixels[x][y] - pixels[x][y + 1]);
 						pix3 = (pixels[x][y] - pixels[x + 1][y + 1]);
-
+					//if pixels are vastly different, highlight in blue 
 						if ( pix1 > 0x2240 || pix2 > 0x2240 || pix3 > 0x2240)
 						{
 							*(Video_Mem_ptr + (y << 9) + x) = 0xFF00FF;
