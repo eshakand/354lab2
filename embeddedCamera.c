@@ -216,7 +216,10 @@ int main(void) {
 						state=0;		//return to original state where button three was not pressed
 					}
 				}
-				/*for (y = 0; y < 240; y++) {
+				
+				/*used to test code, displays pixels on screen
+				
+				for (y = 0; y < 240; y++) {
 					for (x = 0; x < 320; x++) {
 						short temp2 = *(Video_Mem_ptr + (y << 9) + x);
 						*(Video_Mem_ptr + (y << 9) + x) = temp2;
@@ -230,7 +233,7 @@ int main(void) {
 		if (*KEY_ptr == 0x02)		//if second button was pressed while in live feed, do spot the difference
 		{
 			*(Video_In_DMA_ptr + 3) = 0x0;	//Disable the video to capture one frame
-			for (y = 0; y < 240; y++) {			//capture the value pof the pixels in the array 
+			for (y = 0; y < 240; y++) {			//capture the value of the pixels in the pixels array 
 				for (x = 0; x < 320; x++) {
 					short temp2 = *(Video_Mem_ptr + (y << 9) + x);
 					pixels[x][y]=temp2;
