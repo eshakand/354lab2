@@ -199,7 +199,8 @@ int main(void) {
 								int g = (pic[x][y] & 0x07E0) >> 5;
 								int b = (pic[x][y] & 0x001F);
 								int sum = (r + g + b) / 3;	//take the average value of all three components to do grayscale
-								int newPix = 0x0000 | sum | (sum << 6) | (sum << 11); 	//fill in the red, green and blue of new pixel with average value
+								int newPix = 0x0000 | sum | (sum << 6) | (sum << 11); 	//fill in the red, green and blue of 
+															//new pixel with average value
 								*(Video_Mem_ptr + (y << 9) + x) = newPix;    //display grayscale picture on screen
 							}
 						}
