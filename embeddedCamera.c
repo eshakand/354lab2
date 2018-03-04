@@ -91,7 +91,8 @@ int main(void) {
 			time_t t = time(NULL);
 			struct tm tm = *localtime(&t); //take time of picture taken 
 			char timeAndDate[45];
-			sprintf(timeAndDate, "Picture Count: %02d     %04d-%02d-%02d %02d:%02d:%02d GMT", pictureCounter, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec); //store picture Count and timestamp in array 
+			sprintf(timeAndDate, "Picture Count: %02d     %04d-%02d-%02d %02d:%02d:%02d GMT", pictureCounter, tm.tm_year + 1900,
+				tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec); //store picture Count and timestamp in array 
 			x = 2;
 			//display characters in array on screen to display timestamp and picture counter 
 			for (y = 0; y < 45; y++) {
