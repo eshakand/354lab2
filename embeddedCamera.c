@@ -247,7 +247,8 @@ int main(void) {
 					for (x = 0; x < 320; x++) {
 						short temp2 = *(Video_Mem_ptr + (y << 9) + x);
 						//if RGB values are vastly different, then highlight in blue 
-						if ((abs(((pixels[x][y] & 0xF800) >> 11)-((temp2 & 0xF800) >> 11))>0x6)||(abs(((pixels[x][y] & 0x07E0) >> 5)-((temp2 & 0x07E0) >> 5))>0x6)||(abs(((pixels[x][y] & 0x001F))-((temp2 & 0x001F)))>0x6))
+						if ((abs(((pixels[x][y] & 0xF800) >> 11)-((temp2 & 0xF800) >> 11))>0x6)||(abs(((pixels[x][y] & 0x07E0) >> 5)
+						-((temp2 & 0x07E0) >> 5))>0x6)||(abs(((pixels[x][y] & 0x001F))-((temp2 & 0x001F)))>0x6))
 						{
 							*(Video_Mem_ptr + (y << 9) + x) = 0xFF00FF;
 						}
